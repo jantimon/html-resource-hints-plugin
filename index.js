@@ -18,6 +18,8 @@ var preloadDirective = {
 
 function ResourceHintWebpackPlugin (options) {
   assert.equal(options, undefined, 'The ResourceHintWebpackPlugin does not accept any options');
+
+  this.publicPath = null;
 }
 
 function createResourceHintTag (url, ResourceHintType, htmlWebpackPluginOptions) {
@@ -50,9 +52,19 @@ ResourceHintWebpackPlugin.prototype.apply = function (compiler) {
   var self = this;
   // Hook into the html-webpack-plugin processing
   compiler.plugin('compilation', function (compilation) {
+    compilation.plugin('html-webpack-plugin-before-html-processing', function (htmlPluginData, callback) {
+      // html-webpack-plugin makes the publicPath available in this phase, but
+      // not in the next one, so we capture it here. if not empty, we can
+      // count on it having a trailing slash.
+      self.publicPath = htmlPluginData.assets.publicPath;
+      callback(null, htmlPluginData);
+    });
+
     compilation.plugin('html-webpack-plugin-alter-asset-tags', function (htmlPluginData, callback) {
       var htmlWebpackPluginOptions = htmlPluginData.plugin.options;
       var pluginData = objectAssign({}, htmlPluginData);
+      var assets = compilation.getStats().compilation.assets;
+
       var tags = {
         prefetch: [],
         // https://w3c.github.io/preload/#link-type-preload
@@ -75,8 +87,8 @@ ResourceHintWebpackPlugin.prototype.apply = function (compiler) {
             Array.prototype.push.apply(tags[ResourceHintType], self.addResourceHintTags(
               ResourceHintType,
               filter,
-              pluginData.body,
-              htmlWebpackPluginOptions
+              htmlWebpackPluginOptions,
+              assets
             ));
           } else {
             tags[ResourceHintType].push(createResourceHintTag(filter, ResourceHintType, htmlWebpackPluginOptions));
@@ -94,19 +106,13 @@ ResourceHintWebpackPlugin.prototype.apply = function (compiler) {
 /**
  * Adds Resource hint tags
  */
-ResourceHintWebpackPlugin.prototype.addResourceHintTags = function (ResourceHintType, filter, assetTags, htmlWebpackPluginOptions) {
-  var urls = assetTags
-    .map(function (tag) {
-      return tag.attributes.src || tag.attributes.href;
-    })
-    .filter(function (url) {
-      return url;
-    })
-    .filter(minimatch.filter(filter));
-  // Add a ResourceHint for every match
-  return urls.map(function (url) {
-    return createResourceHintTag(url, ResourceHintType, htmlWebpackPluginOptions);
-  });
+ResourceHintWebpackPlugin.prototype.addResourceHintTags = function (ResourceHintType, filter, htmlWebpackPluginOptions, assets) {
+  var self = this;
+  return Object.keys(assets)
+    .filter(minimatch.filter(filter))
+    .map(function (assetFile) {
+      return createResourceHintTag(self.publicPath + assetFile, ResourceHintType, htmlWebpackPluginOptions);
+    });
 };
 
 module.exports = ResourceHintWebpackPlugin;
