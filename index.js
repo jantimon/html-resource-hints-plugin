@@ -48,47 +48,58 @@ function addPreloadType (tag) {
 
 ResourceHintWebpackPlugin.prototype.apply = function (compiler) {
   var self = this;
-  // Hook into the html-webpack-plugin processing
-  compiler.plugin('compilation', function (compilation) {
-    compilation.plugin('html-webpack-plugin-alter-asset-tags', function (htmlPluginData, callback) {
-      var htmlWebpackPluginOptions = htmlPluginData.plugin.options;
-      var pluginData = objectAssign({}, htmlPluginData);
-      var tags = {
-        prefetch: [],
-        // https://w3c.github.io/preload/#link-type-preload
-        preload: []
-      };
-      // Create Resource tags
-      Object.keys(tags).forEach(function (ResourceHintType) {
-        var filters;
-        if (htmlWebpackPluginOptions[ResourceHintType] === false) {
-          return;
-        }
-        // Add all files by default:
-        if (htmlWebpackPluginOptions[ResourceHintType] === undefined) {
-          filters = ['**/*.*'];
+
+  function ResourceHintWebpackPluginAlterAssetTags (htmlPluginData, callback) {
+    var htmlWebpackPluginOptions = htmlPluginData.plugin.options;
+    var pluginData = objectAssign({}, htmlPluginData);
+    var tags = {
+      prefetch: [],
+      // https://w3c.github.io/preload/#link-type-preload
+      preload: []
+    };
+    // Create Resource tags
+    Object.keys(tags).forEach(function (ResourceHintType) {
+      var filters;
+      if (htmlWebpackPluginOptions[ResourceHintType] === false) {
+        return;
+      }
+      // Add all files by default:
+      if (htmlWebpackPluginOptions[ResourceHintType] === undefined) {
+        filters = ['**/*.*'];
+      } else {
+        filters = [].concat(htmlWebpackPluginOptions[ResourceHintType]);
+      }
+      filters.forEach(function (filter) {
+        if (filter.indexOf('*') !== -1) {
+          Array.prototype.push.apply(tags[ResourceHintType], self.addResourceHintTags(
+            ResourceHintType,
+            filter,
+            pluginData.body,
+            htmlWebpackPluginOptions
+          ));
         } else {
-          filters = [].concat(htmlWebpackPluginOptions[ResourceHintType]);
+          tags[ResourceHintType].push(createResourceHintTag(filter, ResourceHintType, htmlWebpackPluginOptions));
         }
-        filters.forEach(function (filter) {
-          if (filter.indexOf('*') !== -1) {
-            Array.prototype.push.apply(tags[ResourceHintType], self.addResourceHintTags(
-              ResourceHintType,
-              filter,
-              pluginData.body,
-              htmlWebpackPluginOptions
-            ));
-          } else {
-            tags[ResourceHintType].push(createResourceHintTag(filter, ResourceHintType, htmlWebpackPluginOptions));
-          }
-        });
       });
-      // Add all Resource tags to the head
-      Array.prototype.push.apply(pluginData.head, tags.preload.map(addPreloadType));
-      Array.prototype.push.apply(pluginData.head, tags.prefetch);
-      callback(null, pluginData);
     });
-  });
+    // Add all Resource tags to the head
+    Array.prototype.push.apply(pluginData.head, tags.preload.map(addPreloadType));
+    Array.prototype.push.apply(pluginData.head, tags.prefetch);
+    callback(null, pluginData);
+  }
+
+  // Hook into the html-webpack-plugin processing
+  if (compiler.hooks) {
+    compiler.hooks.compilation.tap('ResourceHintWebpackPlugin', function (compilation) {
+      if (compilation.hooks.htmlWebpackPluginAlterAssetTags) {
+        compilation.hooks.htmlWebpackPluginAlterAssetTags.tapAsync('ResourceHintWebpackPluginAlterAssetTags', ResourceHintWebpackPluginAlterAssetTags);
+      }
+    });
+  } else {
+    compiler.plugin('compilation', function (compilation) {
+      compilation.plugin('html-webpack-plugin-alter-asset-tags', ResourceHintWebpackPluginAlterAssetTags);
+    });
+  }
 };
 
 /**

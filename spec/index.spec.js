@@ -12,9 +12,12 @@ describe('HtmlResourceHintPlugin', function () {
   it('adds prefetch tags by default', function (done) {
     var expected = fs.readFileSync(path.resolve(__dirname, 'fixtures/expected.html')).toString();
     var compiler = webpack({
-      entry: path.join(__dirname, 'fixtures', 'entry.js'),
+      entry: {
+        main: path.join(__dirname, 'fixtures', 'entry.js')
+      },
       output: {
-        path: OUTPUT_DIR
+        path: OUTPUT_DIR,
+        filename: '[name].js'
       },
       plugins: [
         new HtmlWebpackPlugin(),
@@ -35,9 +38,12 @@ describe('HtmlResourceHintPlugin', function () {
   it('adds prefetch tags', function (done) {
     var expected = fs.readFileSync(path.resolve(__dirname, 'fixtures/expected.html')).toString();
     var compiler = webpack({
-      entry: path.join(__dirname, 'fixtures', 'entry.js'),
+      entry: {
+        main: path.join(__dirname, 'fixtures', 'entry.js')
+      },
       output: {
-        path: OUTPUT_DIR
+        path: OUTPUT_DIR,
+        filename: '[name].js'
       },
       plugins: [
         new HtmlWebpackPlugin({
@@ -60,9 +66,12 @@ describe('HtmlResourceHintPlugin', function () {
 describe('HtmlResourceHintPlugin', function () {
   it('adds no file which do not match the filter', function (done) {
     var compiler = webpack({
-      entry: path.join(__dirname, 'fixtures', 'entry.js'),
+      entry: {
+        main: path.join(__dirname, 'fixtures', 'entry.js')
+      },
       output: {
-        path: OUTPUT_DIR
+        path: OUTPUT_DIR,
+        filename: '[name].js'
       },
       plugins: [
         new HtmlWebpackPlugin({
@@ -86,9 +95,12 @@ describe('HtmlResourceHintPlugin', function () {
 describe('HtmlResourceHintPlugin', function () {
   it('allows to add fixed prefetch url', function (done) {
     var compiler = webpack({
-      entry: path.join(__dirname, 'fixtures', 'entry.js'),
+      entry: {
+        main: path.join(__dirname, 'fixtures', 'entry.js')
+      },
       output: {
-        path: OUTPUT_DIR
+        path: OUTPUT_DIR,
+        filename: '[name].js'
       },
       plugins: [
         new HtmlWebpackPlugin({
@@ -110,9 +122,12 @@ describe('HtmlResourceHintPlugin', function () {
 describe('HtmlResourceHintPlugin', function () {
   it('allows to add fixed preload url', function (done) {
     var compiler = webpack({
-      entry: path.join(__dirname, 'fixtures', 'entry.js'),
+      entry: {
+        main: path.join(__dirname, 'fixtures', 'entry.js')
+      },
       output: {
-        path: OUTPUT_DIR
+        path: OUTPUT_DIR,
+        filename: '[name].js'
       },
       plugins: [
         new HtmlWebpackPlugin({
