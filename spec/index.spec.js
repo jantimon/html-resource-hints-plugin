@@ -1,5 +1,4 @@
 /* eslint-env jasmine */
-const fs = require('fs');
 const path = require('path');
 const MemoryFileSystem = require('memory-fs');
 const webpack = require('webpack');
@@ -8,9 +7,10 @@ const HtmlResourceHintPlugin = require('../');
 
 const OUTPUT_DIR = path.join(__dirname, '../dist');
 
+const expected = '<!doctype html><html><head><meta charset="utf-8"><title>Webpack App</title><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="preload" href="main.js" as="script"><link rel="prefetch" href="main.js"></head><body><script src="main.js"></script></body></html>';
+
 describe('HtmlResourceHintPlugin', () => {
   it('adds prefetch tags by default', (done) => {
-    const expected = fs.readFileSync(path.resolve(__dirname, 'fixtures/expected.html')).toString();
     const compiler = webpack({
       entry: {
         main: path.join(__dirname, 'fixtures', 'entry.js')
@@ -36,7 +36,6 @@ describe('HtmlResourceHintPlugin', () => {
 
 describe('HtmlResourceHintPlugin', () => {
   it('adds prefetch tags', (done) => {
-    const expected = fs.readFileSync(path.resolve(__dirname, 'fixtures/expected.html')).toString();
     const compiler = webpack({
       entry: {
         main: path.join(__dirname, 'fixtures', 'entry.js')

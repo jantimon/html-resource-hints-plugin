@@ -21,7 +21,7 @@ const defaultFilter = ['**/*.*'];
 
 class ResourceHintWebpackPlugin {
   constructor (options) {
-    assert.equal(options, undefined, 'The ResourceHintWebpackPlugin does not accept any options');
+    assert.strictEqual(options, undefined, 'The ResourceHintWebpackPlugin does not accept any options');
   }
 
   apply (compiler) {
@@ -29,11 +29,20 @@ class ResourceHintWebpackPlugin {
     if (compiler.hooks) {
       // Webpack 4+ Plugin System
       compiler.hooks.compilation.tap('ResourceHintWebpackPlugin', compilation => {
-        if (compilation.hooks.htmlWebpackPluginAlterAssetTags) {
-          compilation.hooks.htmlWebpackPluginAlterAssetTags.tapAsync('ResourceHintWebpackPluginAlterAssetTags',
-            resourceHintWebpackPluginAlterAssetTags
-          );
+        let hook = compilation.hooks.htmlWebpackPluginAlterAssetTags;
+
+        if (!hook) {
+          const [HtmlWebpackPlugin] = compiler.options.plugins.filter(
+            (plugin) => plugin.constructor.name === 'HtmlWebpackPlugin');
+
+          assert(HtmlWebpackPlugin, 'Unable to find an instance of HtmlWebpackPlugin in the current compilation.');
+
+          hook = HtmlWebpackPlugin.constructor.getHooks(compilation).alterAssetTagGroups;
         }
+
+        hook.tapAsync('ResourceHintWebpackPlugin',
+          resourceHintWebpackPluginAlterAssetTags
+        );
       });
     } else {
       // Webpack 1-3 Plugin System
@@ -52,11 +61,15 @@ class ResourceHintWebpackPlugin {
 function resourceHintWebpackPluginAlterAssetTags (htmlPluginData, callback) {
   const htmlWebpackPluginOptions = htmlPluginData.plugin.options;
   const pluginData = objectAssign({}, htmlPluginData);
+
+  const body = pluginData.body || pluginData.bodyTags;
+  const head = pluginData.head || pluginData.headTags;
   const tags = {
     prefetch: [],
     // https://w3c.github.io/preload/#link-type-preload
     preload: []
   };
+
   // Create Resource tags
   Object.keys(tags).forEach(resourceHintType => {
     // Check if it is disabled for the current htmlWebpackPlugin instance:
@@ -71,13 +84,14 @@ function resourceHintWebpackPluginAlterAssetTags (htmlPluginData, callback) {
     const fileFilters = htmlWebpackPluginOptions[resourceHintType]
       ? [].concat(htmlWebpackPluginOptions[resourceHintType])
       : defaultFilter;
+
     // Process every filter
     fileFilters.forEach(filter => {
       if (filter.indexOf('*') !== -1) {
         Array.prototype.push.apply(tags[resourceHintType], addResourceHintTags(
           resourceHintType,
           filter,
-          pluginData.body,
+          body,
           htmlWebpackPluginOptions
         ));
       } else {
@@ -85,9 +99,10 @@ function resourceHintWebpackPluginAlterAssetTags (htmlPluginData, callback) {
       }
     });
   });
+
   // Add all Resource tags to the head
-  Array.prototype.push.apply(pluginData.head, tags.preload.map(addPreloadType));
-  Array.prototype.push.apply(pluginData.head, tags.prefetch);
+  Array.prototype.push.apply(head, tags.preload.map(addPreloadType));
+  Array.prototype.push.apply(head, tags.prefetch);
   callback(null, pluginData);
 }
 
@@ -99,6 +114,7 @@ function addResourceHintTags (resourceHintType, filter, assetTags, htmlWebpackPl
     .map(tag => tag.attributes.src || tag.attributes.href)
     .filter(url => url)
     .filter(minimatch.filter(filter));
+
   // Add a ResourceHint for every match
   return urls.map(url => createResourceHintTag(url, resourceHintType, htmlWebpackPluginOptions));
 }
@@ -126,6 +142,7 @@ function addPreloadType (tag) {
   if (preloadDirective[ext]) {
     tag.attributes.as = preloadDirective[ext];
   }
+
   return tag;
 }
 
