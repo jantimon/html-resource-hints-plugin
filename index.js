@@ -29,11 +29,15 @@ class ResourceHintWebpackPlugin {
     if (compiler.hooks) {
       // Webpack 4+ Plugin System
       compiler.hooks.compilation.tap('ResourceHintWebpackPlugin', compilation => {
-        if (compilation.hooks.htmlWebpackPluginAlterAssetTags) {
-          compilation.hooks.htmlWebpackPluginAlterAssetTags.tapAsync('ResourceHintWebpackPluginAlterAssetTags',
-            resourceHintWebpackPluginAlterAssetTags
-          );
+        let hook = compilation.hooks.htmlWebpackPluginAlterAssetTags;
+        if (!hook) {
+          const [HtmlWebpackPlugin] = compiler.options.plugins.filter(
+                  (plugin) => plugin.constructor.name === 'HtmlWebpackPlugin');
+          hook = HtmlWebpackPlugin.constructor.getHooks(compilation).alterAssetTagGroups;
         }
+        hook.tapAsync('ResourceHintWebpackPluginAlterAssetTags',
+            resourceHintWebpackPluginAlterAssetTags
+        );
       });
     } else {
       // Webpack 1-3 Plugin System
@@ -77,7 +81,7 @@ function resourceHintWebpackPluginAlterAssetTags (htmlPluginData, callback) {
         Array.prototype.push.apply(tags[resourceHintType], addResourceHintTags(
           resourceHintType,
           filter,
-          pluginData.body,
+          pluginData.body || pluginData.bodyTags,
           htmlWebpackPluginOptions
         ));
       } else {
@@ -85,9 +89,10 @@ function resourceHintWebpackPluginAlterAssetTags (htmlPluginData, callback) {
       }
     });
   });
+  const head = pluginData.head || pluginData.headTags;
   // Add all Resource tags to the head
-  Array.prototype.push.apply(pluginData.head, tags.preload.map(addPreloadType));
-  Array.prototype.push.apply(pluginData.head, tags.prefetch);
+  Array.prototype.push.apply(head, tags.preload.map(addPreloadType));
+  Array.prototype.push.apply(head, tags.prefetch);
   callback(null, pluginData);
 }
 
